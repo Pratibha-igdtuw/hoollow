@@ -460,3 +460,43 @@ em { font-style: normal; }
 .ext svg { width: 20px; height: 20px; flex: none; color: var(--blue); }
 .ext:hover { border-color: var(--blue); }
 @media (max-width: 520px) { .pr-t { font-size: 14px; } .diff { display: none; } }
+
+
+/* ---------- AI ---------- */
+.goal-in, .ask-row input { width: 100%; font: inherit; font-weight: 700; color: var(--ink-2); background: #fff; border: 3px solid #e3d6ff; border-radius: 16px; padding: 12px 14px; outline: none; }
+.goal-in:focus, .ask-row input:focus { border-color: var(--blue); }
+.field-l .opt, .opt { font-style: normal; font-weight: 700; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.ai-chip { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 99px; background: #e9e1fb; color: var(--muted); margin: 8px 0 4px; }
+.ai-chip.on { background: linear-gradient(180deg, #8be85c, #3fb52a); color: #fff; box-shadow: 0 2px 0 #2e9a1c; }
+.ask { background: #fff; border: 3px solid #e3d6ff; border-radius: 20px; padding: 14px; margin-bottom: 18px; }
+.ask-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.ask-h h4 { margin: 0; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.ask-h .ai-chip { margin: 0; }
+.ask-row { display: flex; gap: 8px; }
+.ask-row .btn { padding: 10px 20px; flex: none; }
+.ask-quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.ask-quick button { font: inherit; font-size: 13px; font-weight: 800; color: var(--violet); background: #f3ecff; border: 2px solid #d9c8ff; border-radius: 99px; padding: 5px 12px; cursor: pointer; }
+.ask-quick button:hover { background: #e9dcff; }
+.ask-out { margin-top: 12px; background: #f3ecff; border-radius: 14px; padding: 12px 14px; font-weight: 700; font-size: 15px; color: var(--ink-2); white-space: pre-wrap; line-height: 1.45; }
+.ask-out.thinking { color: var(--muted); }
+.ask-out.err { background: #ffe3e3; color: #a31228; }
+
+.lvl-help { font-size: 14px; font-weight: 700; color: var(--muted); margin: 8px 2px 0; min-height: 20px; }
+.seg { flex-wrap: wrap; }
+.fy { background: linear-gradient(180deg, #8be85c, #3fb52a); color: #fff; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 99px; }
+.filt { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.filt button { font: inherit; font-weight: 800; font-size: 13px; padding: 6px 14px; border-radius: 99px; border: 3px solid #d9c8ff; background: #fff; color: var(--violet); cursor: pointer; }
+.filt button.on { background: linear-gradient(180deg, #b27cff, #7d3fd6); color: #fff; border-color: #fff; box-shadow: 0 3px 0 #6a35c9; }
+[hidden] { display: none !important; }
+
+.topics { max-height: 220px; overflow: auto; background: #fff; border: 3px solid #e3d6ff; border-radius: 18px; padding: 10px 12px; margin-bottom: 18px; }
+.tg { margin-bottom: 8px; } .tg small { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.tg > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.tchip { font: inherit; font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 99px; border: 2px solid #d9c8ff; background: #f6f1ff; color: var(--ink-2); cursor: pointer; transition: transform 0.1s; }
+.tchip:active { transform: scale(0.94); }
+.tchip.weak { background: linear-gradient(180deg, #ff7a86, #e8222f); color: #fff; border-color: #fff; box-shadow: 0 3px 0 #a31228; }
+.tchip.strong { background: linear-gradient(180deg, #8be85c, #3fb52a); color: #fff; border-color: #fff; box-shadow: 0 3px 0 #2e9a1c; }
+.tw { color: #e8222f; } .ts { color: #2e9a1c; }
+.focus { margin: 6px 0 10px; font-weight: 800; font-size: 14px; color: #fff; }
+.focus span { display: inline-block; margin: 3px 6px 0 0; background: linear-gradient(180deg, #ff7a86, #e8222f); padding: 3px 11px; border-radius: 99px; box-shadow: 0 2px 0 #a31228; font-size: 12px; }
+.meta-row .wk { background: #e8222f !important; box-shadow: 0 3px 0 #a31228 !important; }

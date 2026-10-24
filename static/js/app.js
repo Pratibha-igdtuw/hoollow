@@ -10,7 +10,7 @@
 
   /* ---------------- state ---------------- */
   const blank = () => ({ xp: 0, streak: 0, lastDay: '', badges: [], active: null, paths: {}, solved: {} });
-  let ME = null, STATE = blank(), CATALOG = [], DEMO = false;
+  let ME = null, STATE = blank(), CATALOG = [], DEMO = false, AI_ON = false;
   let saveT;
   const persist = () => { clearTimeout(saveT); saveT = setTimeout(() => api('/api/state', { method: 'PUT', body: STATE }).catch(() => {}), 300); };
   const playerLevel = () => Math.floor(STATE.xp / 100) + 1;
@@ -19,11 +19,16 @@
   const flat = (P) => { let n = 0; return P.roadmap.stages.flatMap((st, si) => st.steps.map((s, i) => ({ ...s, world: si, stage: st, idx: n++, last: i === st.steps.length - 1 }))); };
 
   async function api(url, opts = {}) {
-    const res = await fetch(url, {
-      method: opts.method || 'GET',
-      headers: { 'content-type': 'application/json' },
-      body: opts.body ? JSON.stringify(opts.body) : undefined,
-    });
+    let res;
+    try {
+      res = await fetch(url, {
+        method: opts.method || 'GET',
+        headers: { 'content-type': 'application/json' },
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+      });
+    } catch {
+      throw new Error("Can't reach the PathFinder server. Make sure `python app.py` is running and you opened http://localhost:3000.");
+    }
     let data = {};
     try { data = await res.json(); } catch { /* empty */ }
     if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
@@ -364,13 +369,23 @@
   }
   addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
+  const LVL_HELP = { beginner: 'New to this. Easy problems, small steps.', some: 'Know the basics. Easy and Medium problems.', intermediate: 'Comfortable with the basics. Mostly Medium, some Hard.', pro: 'Already strong. Skips the basics and goes straight to Medium and Hard, interview-grade material.' };
+  const LVL_NAME = { beginner: 'Brand new', some: 'Know a little', intermediate: 'Comfortable', pro: 'Pro' };
   function openSetup(key) {
     const s = CATALOG.find((x) => x.key === key);
     const prof = { level: 'beginner', minutes: 20 };
+    const rate = {};  // topic title -> 'weak' | 'strong'
     sheet(`
       <p class="eyebrow">New path</p><h3>${esc(s.name)}</h3><p class="lede">${esc(s.blurb)}</p>
       <span class="field-l" style="margin-top:6px">Where are you starting from?</span>
-      <div class="seg" data-k="level"><button class="on" data-v="beginner">Brand new</button><button data-v="some">Know a little</button><button data-v="intermediate">Comfortable</button></div>
+      <div class="seg" data-k="level"><button class="on" data-v="beginner">Brand new</button><button data-v="some">Know a little</button><button data-v="intermediate">Comfortable</button><button data-v="pro">Pro</button></div>
+      <p class="lvl-help" id="lvlHelp">New to this. Easy problems, small steps.</p>
+      <span class="field-l">Which topics feel hard or easy? <em class="opt">(optional)</em></span>
+      <p class="lvl-help" style="margin-top:0">Tap once if it's <b class="tw">weak</b> (extra practice), twice if you're already <b class="ts">strong</b> (skipped).</p>
+      <div id="topics" class="topics"><span class="lvl-help">Loading topics…</span></div>
+      <span class="field-l">Your goal <em class="opt">(optional)</em></span>
+      <input class="goal-in" id="goalIn" maxlength="140" placeholder="e.g. crack campus placements in 3 months" autocomplete="off">
+      <span class="ai-chip ${AI_ON ? 'on' : ''}">${AI_ON ? 'AI on · your roadmap is written live by AI' : 'AI off · using built-in roadmaps (add a free Gemini key to switch on)'}</span>
       <span class="field-l">Time you can give each day</span>
       <div class="seg" data-k="minutes"><button data-v="10">10 min</button><button class="on" data-v="20">20 min</button><button data-v="45">45 min</button></div>
       <button class="btn btn-dark" id="build" style="width:100%;margin-top:6px">Build my roadmap</button>`);
@@ -378,8 +393,21 @@
       const b = e.target.closest('button'); if (!b) return;
       $$('button', seg).forEach((x) => x.classList.toggle('on', x === b));
       prof[seg.dataset.k] = seg.dataset.k === 'minutes' ? Number(b.dataset.v) : b.dataset.v;
+      if (seg.dataset.k === 'level') { $('#lvlHelp').textContent = LVL_HELP[prof.level]; loadTopics(); }
     }));
-    $('#build').addEventListener('click', () => { closeSheet(); buildPath(key, prof); });
+    const loadTopics = async () => {
+      const box = $('#topics'); if (!box) return;
+      let data; try { data = await api(`/api/topics?skill=${key}&level=${prof.level}`); } catch { box.innerHTML = '<span class="lvl-help">Topic list unavailable. You can still build your roadmap.</span>'; return; }
+      const valid = new Set(data.flatMap((w) => w.topics)); Object.keys(rate).forEach((t) => { if (!valid.has(t)) delete rate[t]; });
+      box.innerHTML = data.map((w) => `<div class="tg"><small>${esc(w.world)}</small><div>${w.topics.map((t) => `<button type="button" class="tchip ${rate[t] || ''}" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>`).join('');
+      $$('.tchip', box).forEach((b) => b.addEventListener('click', () => {
+        const t = b.dataset.t, nxt = !rate[t] ? 'weak' : rate[t] === 'weak' ? 'strong' : '';
+        if (nxt) rate[t] = nxt; else delete rate[t];
+        b.classList.remove('weak', 'strong'); if (nxt) b.classList.add(nxt); sfx('pop', nxt === 'weak' ? 0 : nxt === 'strong' ? 3 : 1);
+      }));
+    };
+    loadTopics();
+    $('#build').addEventListener('click', () => { prof.goal = $('#goalIn').value.trim(); prof.weak = Object.keys(rate).filter((t) => rate[t] === 'weak'); prof.strong = Object.keys(rate).filter((t) => rate[t] === 'strong'); closeSheet(); buildPath(key, prof); });
   }
 
   const LOAD = ['Choosing the right first step', 'Sequencing your worlds', 'Fitting levels to your day', 'Adding a project to each world'];
@@ -391,7 +419,9 @@
     let i = 0; const iv = setInterval(() => { const p = $('#ls'); if (p) p.textContent = LOAD[++i % LOAD.length]; }, 750);
     const t0 = Date.now();
     try {
-      const d = await api('/api/roadmap', { method: 'POST', body: { skill: key, ...prof } });
+      let d;
+      try { d = await api('/api/roadmap', { method: 'POST', body: { skill: key, ...prof } }); }
+      catch (err) { await wait(800); d = await api('/api/roadmap', { method: 'POST', body: { skill: key, ...prof } }); }  // one automatic retry
       await wait(Math.max(0, 1600 - (Date.now() - t0)));
       STATE.paths[key] = { roadmap: d.roadmap, source: d.source, profile: prof, done: {} };
       STATE.active = key; persist();
@@ -439,7 +469,8 @@
     root.innerHTML = shell('map', `
       <div class="map-page">
         <section>
-          <div class="map-head"><p class="eyebrow">${P.source === 'claude' ? 'Roadmap by Claude' : 'Your roadmap'}</p><h1>${esc(rm.skill)}</h1><p>${esc(rm.tagline)} About ${rm.totalWeeks} week${rm.totalWeeks > 1 ? 's' : ''} at ${P.profile?.minutes || 20} minutes a day.</p>
+          <div class="map-head"><p class="eyebrow">${P.source === 'claude' ? '<span class="ai-chip on">AI-generated roadmap</span>' : 'Your roadmap'}</p><h1>${esc(rm.skill)}</h1><p>${esc(rm.tagline)} About ${rm.totalWeeks} week${rm.totalWeeks > 1 ? 's' : ''} at ${P.profile?.minutes || 20} minutes a day.</p>
+            ${rm.focus && rm.focus.length ? `<p class="focus"><b>Extra practice on:</b> ${rm.focus.map((x) => `<span>${esc(x)}</span>`).join('')}</p>` : ''}
             <div class="row"><div class="progress"><i style="width:${pct}%"></i></div><span>${pct}% complete</span></div></div>
           <div class="levels" id="levels"><svg class="trail"></svg>${levels}</div>
           <div class="map-foot"><button class="link" data-nav="app">Switch skill</button><button class="link" id="reset">Restart this path</button></div>
@@ -463,12 +494,13 @@
   }
 
   /* ---------------- LeetCode sheet (DSA) ---------------- */
-  let SHEET = null;
+  let SHEET = {};
+  const myLevel = () => (activePath()?.profile?.level) || 'beginner';
   const lcUrl = (slug) => `https://leetcode.com/problems/${slug}/`;
   const isSolved = (slug) => (STATE.solved || {})[slug] === 2;
   const solvedCount = () => Object.values(STATE.solved || {}).filter((v) => v === 2).length;
   function problemRow(p) {
-    return `<div class="pr ${isSolved(p.slug) ? 'solved' : ''}">
+    return `<div class="pr ${isSolved(p.slug) ? 'solved' : ''}" data-diff="${esc(p.diff)}" data-you="${p.forYou ? 1 : 0}">
       <label><input type="checkbox" data-slug="${esc(p.slug)}" data-diff="${esc(p.diff)}" data-xp="${p.xp}" ${isSolved(p.slug) ? 'checked' : ''} aria-label="Mark ${esc(p.title)} as solved"><i class="tick">${I.check}</i></label>
       <span class="pr-t">${esc(p.title)}</span>
       <span class="diff d-${esc(p.diff.toLowerCase())}">${esc(p.diff)}</span>
@@ -495,24 +527,33 @@
   const countIn = (el) => { const all = $$('.pr input', el); return `${all.filter((c) => c.checked).length} / ${all.length}`; };
   function levelProblems(s) {
     if (!s.problems || !s.problems.length) return '';
-    return `<div class="lc"><div class="lc-h"><h4>LeetCode practice</h4><b id="lcCount">${s.problems.filter((p) => isSolved(p.slug)).length} / ${s.problems.length}</b></div>${s.problems.map(problemRow).join('')}<p class="lc-note">Optional. Solve them on LeetCode, then tick them off here for bonus XP.</p></div>`;
+    return `<div class="lc"><div class="lc-h"><h4>LeetCode practice · ${esc(LVL_NAME[myLevel()])}</h4><b id="lcCount">${s.problems.filter((p) => isSolved(p.slug)).length} / ${s.problems.length}</b></div>${s.problems.map(problemRow).join('')}<p class="lc-note">Optional. Solve them on LeetCode, then tick them off here for bonus XP.</p></div>`;
   }
   async function openSheetModal() {
-    if (!SHEET) { try { SHEET = await api('/api/sheet'); } catch { toast('Could not load the sheet. Check your connection.'); return; } }
-    const total = SHEET.topics.reduce((a, t) => a + t.problems.length, 0);
-    const worlds = [...new Set(SHEET.topics.map((t) => t.world))];
+    const lv = myLevel();
+    if (!SHEET[lv]) { try { SHEET[lv] = await api('/api/sheet?level=' + lv); } catch (e) { toast(e.message); return; } }
+    const SH = SHEET[lv];
+    const worlds = [...new Set(SH.topics.map((t) => t.world))];
     sfx('open');
     sheet(`<p class="eyebrow">DSA · Practice</p><h3>LeetCode sheet</h3>
-      <p class="lede">${total} hand-picked problems, in the same order as your worlds. Tick each one when you solve it.</p>
+      <p class="lede">Matched to your level: <b>${esc(SH.levelLabel)}</b>. Problems marked <span class="fy">For you</span> fit it. Switch the filter to try easier or harder ones.</p>
+      <div class="filt" id="lcFilt">${['you:For you', 'all:All', 'Easy:Easy', 'Medium:Medium', 'Hard:Hard'].map((x, i) => { const [v, l] = x.split(':'); return `<button data-f="${v}" class="${i === 0 ? 'on' : ''}">${l}</button>`; }).join('')}</div>
       <div class="lc-total"><div class="progress"><i id="lcBar" style="width:0%"></i></div><b id="lcAll"></b></div>
       <div id="lcBody">${worlds.map((w) => {
-        const ts = SHEET.topics.filter((t) => t.world === w);
+        const ts = SH.topics.filter((t) => t.world === w);
         return `<div class="lc-world"><h5><span>World ${w + 1}</span>${esc(ts[0].worldTitle)}</h5>${ts.map((t) => `<div class="lc-topic"><h6>${esc(t.title)}</h6>${t.problems.map(problemRow).join('')}</div>`).join('')}</div>`;
       }).join('')}</div>
-      <div class="lc-ext"><h5>More sheets</h5>${SHEET.links.map((l) => `<a class="ext" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><div><b>${esc(l.name)}</b><small>${esc(l.desc)}</small></div>${I.ext}</a>`).join('')}</div>`);
+      <div class="lc-ext"><h5>More sheets</h5>${SH.links.map((l) => `<a class="ext" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><div><b>${esc(l.name)}</b><small>${esc(l.desc)}</small></div>${I.ext}</a>`).join('')}</div>`);
     const body = $('#lcBody');
-    const upd = () => { const all = $$('.pr input', body), d = all.filter((c) => c.checked).length; $('#lcAll').textContent = `${d} / ${all.length} solved`; $('#lcBar').style.width = Math.round((d / all.length) * 100) + '%'; };
-    bindProblems(body, upd); upd();
+    const upd = () => { const all = $$('.pr input', body).filter((c) => !c.closest('.pr').hidden), d = all.filter((c) => c.checked).length; $('#lcAll').textContent = `${d} / ${all.length} solved`; $('#lcBar').style.width = Math.round((d / Math.max(1, all.length)) * 100) + '%'; };
+    const applyF = (f) => {
+      $$('.pr', body).forEach((r) => { r.hidden = !(f === 'all' || (f === 'you' ? r.dataset.you === '1' : r.dataset.diff === f)); });
+      $$('.lc-topic', body).forEach((t) => { t.hidden = !$$('.pr', t).some((r) => !r.hidden); });
+      $$('.lc-world', body).forEach((w) => { w.hidden = !$$('.lc-topic', w).some((t) => !t.hidden); });
+      $$('#lcFilt button').forEach((b) => b.classList.toggle('on', b.dataset.f === f)); upd();
+    };
+    $$('#lcFilt button').forEach((b) => b.addEventListener('click', () => applyF(b.dataset.f)));
+    bindProblems(body, upd); applyF('you');
   }
 
   /* ---------------- level sheet ---------------- */
@@ -528,7 +569,11 @@
         <p class="lede">${esc(s.action)}</p>
         <div class="tip"><b>Tip</b>${esc(s.hint || 'Keep it small and just begin.')}</div>
         ${levelProblems(s)}
-        <div class="meta-row"><span>${s.minutes} min</span><span>${cap(s.type)}</span><span>+${xpFor(s.minutes)} XP</span>${old ? `<span>Best: ${old} star${old > 1 ? 's' : ''}</span>` : ''}</div>
+        <div class="ask"><div class="ask-h"><h4>Ask the AI coach</h4><span class="ai-chip ${AI_ON ? 'on' : ''}">${AI_ON ? 'AI' : 'offline'}</span></div>
+          <div class="ask-row"><input id="askIn" maxlength="300" placeholder="Stuck? Ask anything about this level" autocomplete="off"><button class="btn btn-dark" id="askBtn">Ask</button></div>
+          <div class="ask-quick"><button data-q="Explain this level in simple words">Explain simply</button><button data-q="Give me a small example">Show an example</button><button data-q="Give me a hint without the full answer">Hint</button></div>
+          <div class="ask-out" id="askOut" hidden></div></div>
+        <div class="meta-row"><span>${s.minutes} min</span><span>${cap(s.type)}</span><span>+${xpFor(s.minutes)} XP</span>${s.weak ? '<span class="wk">Weak spot</span>' : ''}${old ? `<span>Best: ${old} star${old > 1 ? 's' : ''}</span>` : ''}</div>
         <div class="row"><button class="btn btn-dark" id="bDone">I've done this</button><button class="btn btn-ghost" id="bTimer">Start ${s.minutes}-minute timer</button></div>
         <div class="timer" id="timer" hidden></div>
       </div>
@@ -542,6 +587,16 @@
       </div>
       <div id="pRes" hidden></div>`, () => { if (DEMO && !$('.node[data-state="done"]')) { /* keep tour alive */ } });
     bindProblems($('#pDo'), () => { const c = $('#lcCount'); if (c) c.textContent = countIn($('.lc')); });
+    const ask = async (q) => {
+      if (!q) return; const out = $('#askOut'); out.hidden = false; out.className = 'ask-out thinking'; out.textContent = 'Thinking…'; sfx('tap');
+      try {
+        const d = await api('/api/coach', { method: 'POST', body: { question: q, skill: activePath().roadmap.skill, title: s.title, action: s.action, hint: s.hint } });
+        out.className = 'ask-out'; out.textContent = d.answer; sfx('sparkle');
+      } catch (e) { out.className = 'ask-out err'; out.textContent = e.message; }
+    };
+    $('#askBtn').addEventListener('click', () => ask($('#askIn').value.trim()));
+    $('#askIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(e.target.value.trim()); });
+    $$('.ask-quick button').forEach((b) => b.addEventListener('click', () => ask(b.dataset.q)));
     $('#bDone').addEventListener('click', () => {
       clearInterval(timerId); timerId = null;
       $('#pDo').hidden = true; $('#pRate').hidden = false;
@@ -641,6 +696,7 @@
   /* ---------------- boot ---------------- */
   (async function boot() {
     try { CATALOG = await api('/api/catalog'); } catch { CATALOG = []; }
+    try { AI_ON = !!(await api('/api/health')).ai; } catch { AI_ON = false; }
     try {
       const d = await api('/api/me');
       if (d.user) { ME = d.user; STATE = { ...blank(), ...d.state }; }

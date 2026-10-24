@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from flask import Flask, g, jsonify, request, send_from_directory, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from lib.content import SKILLS, attach_problems, catalog, fallback_roadmap, sheet as leetcode_sheet
+from lib.content import SKILLS, attach_problems, catalog, fallback_roadmap, sheet as leetcode_sheet, topics_for
 
 load_dotenv()
 
@@ -84,7 +84,7 @@ def session_payload(row):
     merged = {**EMPTY_STATE, **state}
     dsa = (merged.get("paths") or {}).get("dsa")
     if isinstance(dsa, dict) and isinstance(dsa.get("roadmap"), dict):
-        attach_problems(dsa["roadmap"])  # older saved DSA paths get the LeetCode sheet too
+        attach_problems(dsa["roadmap"], (dsa.get("profile") or {}).get("level", "beginner"))  # keeps problems matched to the saved level
     return {"user": {"name": row["name"], "email": row["email"]}, "state": merged}
 
 
@@ -206,7 +206,7 @@ for a student learning ONE technical skill. Return ONLY valid JSON (no markdown)
 }
 Rules: exactly 4 stages with 4 steps each. The very first step must be tiny (<=10 minutes) and instantly doable.
 The LAST step of every stage is a small milestone project that starts with "Milestone:".
-Steps must fit the learner's daily time. Tailor depth to their level. Be specific and practical. No filler."""
+Steps must fit the learner's daily time. Tailor depth AND difficulty to their level: for \"pro\" learners skip basics entirely and use advanced, interview-grade material; for \"beginner\" go slowly with small wins. Be specific and practical. No filler."""
 
 
 def extract_json(text):
@@ -216,16 +216,48 @@ def extract_json(text):
     return json.loads(text[a:b + 1])
 
 
-def claude_roadmap(name, level, minutes):
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+
+def provider():
+    """Which AI is configured: 'anthropic', 'gemini' (free key from Google AI Studio) or None."""
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return "anthropic"
+    if os.getenv("GEMINI_API_KEY"):
+        return "gemini"
+    return None
+
+
+def ask_gemini(system, user, max_tokens, timeout):
+    base = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com").rstrip("/")
     body = json.dumps({
-        "model": MODEL,
-        "max_tokens": 3500,
-        "system": SYSTEM,
-        "messages": [{"role": "user", "content":
-                      f"Skill: {name}\nCurrent level: {level}\nTime per day: {minutes} minutes"}],
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": user}]}],
+        "generationConfig": {"maxOutputTokens": max_tokens * 2, "temperature": 0.7},
     }).encode()
     req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
+        f"{base}/v1beta/models/{GEMINI_MODEL}:generateContent",
+        data=body,
+        headers={"content-type": "application/json", "x-goog-api-key": os.environ["GEMINI_API_KEY"]},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as res:
+        data = json.load(res)
+    parts = data["candidates"][0]["content"]["parts"]
+    return "".join(p.get("text", "") for p in parts)
+
+
+def ask_claude(system, user, max_tokens=1000, timeout=40):
+    """Ask the configured AI (Claude or Gemini). Keys stay on the server, never reach the browser."""
+    if provider() == "gemini":
+        return ask_gemini(system, user, max_tokens, timeout)
+    body = json.dumps({
+        "model": MODEL,
+        "max_tokens": max_tokens,
+        "system": system,
+        "messages": [{"role": "user", "content": user}],
+    }).encode()
+    req = urllib.request.Request(
+        os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com").rstrip("/") + "/v1/messages",
         data=body,
         headers={
             "content-type": "application/json",
@@ -233,9 +265,26 @@ def claude_roadmap(name, level, minutes):
             "anthropic-version": "2023-06-01",
         },
     )
-    with urllib.request.urlopen(req, timeout=60) as res:
+    with urllib.request.urlopen(req, timeout=timeout) as res:
         data = json.load(res)
-    return extract_json("".join(c.get("text", "") for c in data["content"]))
+    return "".join(c.get("text", "") for c in data["content"])
+
+
+def claude_roadmap(name, level, minutes, goal="", weak=(), strong=()):
+    msg = f"Skill: {name}\nCurrent level: {level}\nTime per day: {minutes} minutes"
+    if weak:
+        msg += "\nWEAK topics (give each extra levels, start gentler, add a drill): " + "; ".join(weak)
+    if strong:
+        msg += "\nALREADY STRONG topics (skip them or keep one quick check): " + "; ".join(strong)
+    if goal:
+        msg += f"\nThe learner's own goal (tailor the worlds and milestones to it): {goal}"
+    return extract_json(ask_claude(SYSTEM, msg, max_tokens=3500, timeout=45))
+
+
+COACH_SYSTEM = """You are a friendly, concise tech mentor inside a gamified learning app.
+The learner is on one level of a roadmap. Answer their question in at most 120 words, plain language,
+with one tiny example if it helps. If they ask for the answer to a LeetCode problem, give a hint and the idea, not full code.
+No markdown headings."""
 
 
 def normalise(rm):
@@ -263,7 +312,7 @@ def roadmap():
     key = str(p.get("skill", ""))
     if key not in SKILLS:
         return jsonify(error="Please choose one of the tech skills."), 400
-    level = p.get("level") if p.get("level") in ("beginner", "some", "intermediate") else "beginner"
+    level = p.get("level") if p.get("level") in ("beginner", "some", "intermediate", "pro") else "beginner"
     try:
         minutes = int(p.get("minutes", 20))
     except (TypeError, ValueError):
@@ -271,10 +320,17 @@ def roadmap():
     if minutes not in (10, 20, 45):
         minutes = 20
 
+    goal = re.sub(r"\s+", " ", str(p.get("goal", ""))).strip()[:200]
+
+    def names(v):
+        v = v if isinstance(v, list) else []
+        return [re.sub(r"\s+", " ", x).strip()[:80] for x in v if isinstance(x, str) and x.strip()][:30]
+    weak, strong = names(p.get("weak")), names(p.get("strong"))
+
     source, rm = "offline", None
-    if os.getenv("ANTHROPIC_API_KEY"):
+    if provider():
         try:
-            rm = claude_roadmap(SKILLS[key]["name"], level, minutes)
+            rm = claude_roadmap(SKILLS[key]["name"], level, minutes, goal, weak, strong)
             if len(rm.get("stages") or []) < 2:
                 raise ValueError("Too few stages")
             source = "claude"
@@ -282,21 +338,57 @@ def roadmap():
             print("Claude failed, using offline generator:", e)
             rm = None
     if rm is None:
-        rm = fallback_roadmap(key, level, minutes)
+        rm = fallback_roadmap(key, level, minutes, weak, strong)
+        if goal:
+            rm["tagline"] = f"Your goal: {goal}"[:90]
     rm = normalise(rm)
     if key == "dsa":
-        attach_problems(rm)
+        attach_problems(rm, level)
     return jsonify(source=source, roadmap=rm)
+
+
+@app.post("/api/coach")
+@login_required
+def coach():
+    p = request.get_json(silent=True) or {}
+    question = str(p.get("question", "")).strip()[:400]
+    if not question:
+        return jsonify(error="Type a question first."), 400
+    skill = str(p.get("skill", ""))[:60]
+    title = str(p.get("title", ""))[:120]
+    action = str(p.get("action", ""))[:300]
+    hint = str(p.get("hint", ""))[:300]
+    if provider():
+        try:
+            ans = ask_claude(COACH_SYSTEM, f"Skill: {skill}\nLevel title: {title}\nTask: {action}\nLearner question: {question}",
+                             max_tokens=400, timeout=30).strip()
+            if ans:
+                return jsonify(answer=ans, source="claude")
+        except Exception as e:
+            print("Claude coach failed, using offline answer:", e)
+    ans = (f"Here is a way in. {action} {hint} Break it into the smallest piece you can finish in five minutes, "
+           "do that piece, then come back and ask again. (Offline coach: add a free GEMINI_API_KEY to .env for live AI answers.)")
+    return jsonify(answer=ans.strip(), source="offline")
+
+
+@app.get("/api/topics")
+def get_topics():
+    key = request.args.get("skill", "")
+    if key not in SKILLS:
+        return jsonify(error="Unknown skill."), 400
+    lv = request.args.get("level", "beginner")
+    return jsonify(topics_for(key, lv if lv in ("beginner", "some", "intermediate", "pro") else "beginner"))
 
 
 @app.get("/api/sheet")
 def get_sheet():
-    return jsonify(leetcode_sheet())
+    lv = request.args.get("level", "beginner")
+    return jsonify(leetcode_sheet(lv if lv in ("beginner", "some", "intermediate", "pro") else "beginner"))
 
 
 @app.get("/api/health")
 def health():
-    return jsonify(ok=True, ai=bool(os.getenv("ANTHROPIC_API_KEY")))
+    return jsonify(ok=True, ai=bool(provider()), provider=provider(), model=GEMINI_MODEL if provider() == "gemini" else MODEL)
 
 
 @app.get("/")
@@ -309,4 +401,4 @@ init_db()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "3000"))
     print(f"PathFinder running -> http://localhost:{port}")
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
