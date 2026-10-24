@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PathFinder — Learn anything, one clear step at a time</title>
+  <meta name="description" content="Pick a goal. Get an AI-generated roadmap. Take the next step." />
+  <meta name="theme-color" content="#050506" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <header class="nav">
+    <a class="brand" href="#" id="brand">
+      <span class="logo" aria-hidden="true"></span>PathFinder
+    </a>
+    <div class="hud" id="hud" hidden>
+      <span class="chip" title="Daily streak">🔥 <b id="hudStreak">0</b></span>
+      <span class="chip" title="Experience points">⚡ <b id="hudXp">0</b> XP</span>
+      <span class="chip lvl" title="Level">LV <b id="hudLvl">1</b></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section id="home" class="view active">
+      <div class="hero">
+        <p class="eyebrow">AI learning coach</p>
+        <h1>Where do I start?<br /><span class="grad">Now you know.</span></h1>
+        <p class="sub">Tell us what you want to learn. In seconds you get a clear roadmap and one tiny first step — no overwhelm, no getting lost.</p>
+
+        <form id="form" class="panel" autocomplete="off">
+          <label class="field-label" for="skill">I want to learn</label>
+          <input id="skill" name="skill" class="big-input" placeholder="e.g. Python, Web Development, Guitar…" maxlength="80" required />
+          <div class="chips" id="suggest">
+            <button type="button" class="pill" data-skill="Python">Python</button>
+            <button type="button" class="pill" data-skill="Web Development">Web Development</button>
+            <button type="button" class="pill" data-skill="Data Science">Data Science</button>
+            <button type="button" class="pill" data-skill="Public Speaking">Public Speaking</button>
+            <button type="button" class="pill" data-skill="Guitar">Guitar</button>
+          </div>
+
+          <div class="row2">
+            <div>
+              <span class="field-label">My level</span>
+              <div class="seg" data-name="level">
+                <button type="button" class="on" data-v="beginner">Brand new</button>
+                <button type="button" data-v="some">Know a bit</button>
+                <button type="button" data-v="intermediate">Comfortable</button>
+              </div>
+            </div>
+            <div>
+              <span class="field-label">Time per day</span>
+              <div class="seg" data-name="minutes">
+                <button type="button" data-v="10">10 min</button>
+                <button type="button" class="on" data-v="20">20 min</button>
+                <button type="button" data-v="45">45 min</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cta-row">
+            <button class="btn primary" type="submit" id="go">Build my roadmap <span aria-hidden="true">→</span></button>
+            <button class="btn ghost" type="button" id="demo">▶ 60-second demo</button>
+          </div>
+          <p class="err" id="err" role="alert" hidden></p>
+        </form>
+
+        <ul class="trust">
+          <li><b>3</b> taps to a plan</li>
+          <li><b>1</b> next step, always</li>
+          <li><b>0</b> sign-ups</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- LOADING -->
+    <section id="loading" class="view">
+      <div class="loader">
+        <div class="orb"></div>
+        <h2 id="loadTitle">Mapping your path…</h2>
+        <p id="loadSub" class="muted">Finding the smallest first step</p>
+      </div>
+    </section>
+
+    <!-- PATH -->
+    <section id="path" class="view">
+      <div class="path-head">
+        <div>
+          <p class="eyebrow" id="pSource">Your roadmap</p>
+          <h2 id="pTitle">—</h2>
+          <p class="muted" id="pTag"></p>
+        </div>
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" class="ring-bg" />
+            <circle cx="60" cy="60" r="52" class="ring-fg" id="ringFg" />
+          </svg>
+          <div class="ring-text"><b id="pPct">0%</b><span>done</span></div>
+        </div>
+      </div>
+
+      <div class="next" id="next"></div>
+
+      <div class="xpbar">
+        <div class="xp-meta"><span>Level <b id="xLvl">1</b></span><span><b id="xNow">0</b> / 100 XP</span></div>
+        <div class="bar"><i id="xFill"></i></div>
+      </div>
+
+      <h3 class="section-title">Full roadmap</h3>
+      <div class="timeline" id="timeline"></div>
+
+      <div class="badges-wrap">
+        <h3 class="section-title">Badges</h3>
+        <div class="badges" id="badges"></div>
+      </div>
+
+      <div class="foot-actions">
+        <button class="btn ghost" id="restart">Start a new goal</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Step modal -->
+  <div class="modal" id="modal" hidden>
+    <div class="sheet">
+      <button class="x" id="mClose" aria-label="Close">✕</button>
+      <p class="eyebrow" id="mMeta"></p>
+      <h3 id="mTitle"></h3>
+      <p class="m-action" id="mAction"></p>
+      <p class="hint" id="mHint"></p>
+      <div id="mFeedback" hidden>
+        <p class="field-label">How did that feel?</p>
+        <div class="feel">
+          <button data-f="easy">😄 Easy</button>
+          <button data-f="ok">🙂 Just right</button>
+          <button data-f="hard">😅 Tough</button>
+        </div>
+      </div>
+      <div class="cta-row" id="mActions">
+        <button class="btn primary" id="mDone">I did it ✓</button>
+        <button class="btn ghost" id="mTimer">Start timer</button>
+      </div>
+      <p class="timer" id="mTimerText" hidden></p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
