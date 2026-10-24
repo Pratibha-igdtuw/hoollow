@@ -354,6 +354,37 @@
     }));
   }
 
+  /* ---------------- quiz runner (used by the diagnostic and level quizzes) ---------------- */
+  function runQuiz(box, qs, title, onDone) {
+    let i = 0, right = 0; const results = [];
+    const show = () => {
+      const q = qs[i];
+      box.innerHTML = `<div class="quiz"><div class="q-top"><b>${esc(title)}</b><span>${i + 1} / ${qs.length}</span></div>
+        <div class="progress" style="height:8px;margin:8px 0 16px"><i style="width:${(i / qs.length) * 100}%"></i></div>
+        <h4 class="q-q">${esc(q.q)}</h4>
+        <div class="q-opts">${q.options.map((o, k) => `<button type="button" data-k="${k}">${esc(o)}</button>`).join('')}</div>
+        <div class="q-why" id="qWhy" hidden></div>
+        <button class="btn btn-dark" id="qNext" hidden>${i + 1 < qs.length ? 'Next question' : 'See result'}</button></div>`;
+      $$('.q-opts button', box).forEach((b) => b.addEventListener('click', () => {
+        if (b.dataset.answered) return;
+        const k = +b.dataset.k, ok = k === q.answer;
+        $$('.q-opts button', box).forEach((x) => { x.dataset.answered = 1; x.disabled = true; if (+x.dataset.k === q.answer) x.classList.add('right'); });
+        if (!ok) b.classList.add('wrong');
+        if (ok) right++; results.push({ topic: q.topic, correct: ok });
+        sfx(ok ? 'solve' : 'error', 'Easy');
+        const w = $('#qWhy', box); w.hidden = false; w.innerHTML = `<b>${ok ? 'Correct!' : 'Not quite.'}</b> ${esc(q.explain || '')}`;
+        $('#qNext', box).hidden = false;
+      }));
+      $('#qNext', box).addEventListener('click', () => { sfx('tap'); i++; if (i < qs.length) show(); else onDone({ right, total: qs.length, results }); });
+    };
+    show();
+  }
+  async function fetchQuiz(body, box) {
+    box.hidden = false; box.innerHTML = '<div class="quiz"><p class="lvl-help">The AI is writing your questions…</p></div>';
+    try { return (await api('/api/quiz', { method: 'POST', body })).questions; }
+    catch (e) { box.innerHTML = `<div class="quiz"><p class="ask-out err">${esc(e.message)}</p></div>`; return null; }
+  }
+
   /* ---------------- setup sheet + build ---------------- */
   function sheet(html, onClose) {
     $('#modal-root').innerHTML = `<div class="sheet-back" data-close></div><div class="sheet" role="dialog" aria-modal="true"><button class="sheet-x" data-close aria-label="Close">×</button>${html}</div>`;
@@ -377,9 +408,12 @@
     const rate = {};  // topic title -> 'weak' | 'strong'
     sheet(`
       <p class="eyebrow">New path</p><h3>${esc(s.name)}</h3><p class="lede">${esc(s.blurb)}</p>
+      <div id="quizBox" hidden></div>
+      <div id="setupMain">
       <span class="field-l" style="margin-top:6px">Where are you starting from?</span>
       <div class="seg" data-k="level"><button class="on" data-v="beginner">Brand new</button><button data-v="some">Know a little</button><button data-v="intermediate">Comfortable</button><button data-v="pro">Pro</button></div>
       <p class="lvl-help" id="lvlHelp">New to this. Easy problems, small steps.</p>
+      <button class="btn btn-ghost" id="diag" type="button" style="width:100%;margin-bottom:14px">Not sure? Take a 1-minute AI quiz to find weak topics</button>
       <span class="field-l">Which topics feel hard or easy? <em class="opt">(optional)</em></span>
       <p class="lvl-help" style="margin-top:0">Tap once if it's <b class="tw">weak</b> (extra practice), twice if you're already <b class="ts">strong</b> (skipped).</p>
       <div id="topics" class="topics"><span class="lvl-help">Loading topics…</span></div>
@@ -388,7 +422,7 @@
       <span class="ai-chip ${AI_ON ? 'on' : ''}">${AI_ON ? 'AI on · your roadmap is written live by AI' : 'AI off · using built-in roadmaps (add a free Gemini key to switch on)'}</span>
       <span class="field-l">Time you can give each day</span>
       <div class="seg" data-k="minutes"><button data-v="10">10 min</button><button class="on" data-v="20">20 min</button><button data-v="45">45 min</button></div>
-      <button class="btn btn-dark" id="build" style="width:100%;margin-top:6px">Build my roadmap</button>`);
+      <button class="btn btn-dark" id="build" style="width:100%;margin-top:6px">Build my roadmap</button></div>`);
     $$('.seg').forEach((seg) => seg.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       $$('button', seg).forEach((x) => x.classList.toggle('on', x === b));
@@ -407,6 +441,20 @@
       }));
     };
     loadTopics();
+    $('#diag').addEventListener('click', async () => {
+      const box = $('#quizBox'), main = $('#setupMain'); main.hidden = true;
+      const qs = await fetchQuiz({ skill: key, level: prof.level, mode: 'diagnostic' }, box);
+      if (!qs) { box.insertAdjacentHTML('beforeend', '<button class="btn btn-ghost" id="qBack" style="margin-top:12px">Back</button>'); $('#qBack').addEventListener('click', () => { box.hidden = true; main.hidden = false; }); return; }
+      runQuiz(box, qs, 'Quick check', (r) => {
+        r.results.forEach((x) => { if (x.topic) { if (!x.correct) rate[x.topic] = 'weak'; else if (rate[x.topic] === 'weak') delete rate[x.topic]; } });
+        const weak = r.results.filter((x) => !x.correct && x.topic).map((x) => x.topic);
+        sfx(weak.length ? 'select' : 'win', 2);
+        box.innerHTML = `<div class="quiz"><h4 class="q-q">You got ${r.right} of ${r.total}.</h4>
+          <p class="lvl-help">${weak.length ? 'Weak spots found: <b class="tw">' + weak.map(esc).join(', ') + '</b>. Your roadmap will add extra practice there.' : 'No weak spots found. Nice work!'}</p>
+          <button class="btn btn-dark" id="qBack2">Continue</button></div>`;
+        $('#qBack2').addEventListener('click', () => { box.hidden = true; main.hidden = false; loadTopics(); });
+      });
+    });
     $('#build').addEventListener('click', () => { prof.goal = $('#goalIn').value.trim(); prof.weak = Object.keys(rate).filter((t) => rate[t] === 'weak'); prof.strong = Object.keys(rate).filter((t) => rate[t] === 'strong'); closeSheet(); buildPath(key, prof); });
   }
 
@@ -643,7 +691,34 @@
       <h3>${pathDone ? 'Path Complete!' : 'Level Complete!'}</h3>
       <p class="gain">${first ? `+${gain} XP` : stars > old ? 'Better score saved.' : 'Your best score stays.'}</p>
       ${lines.map((l) => `<p class="extra">${esc(l)}</p>`).join('')}
+      <p class="extra adapt" id="adaptNote" hidden></p>
+      ${AI_ON && !(P.quiz || {})[s.id] ? '<button class="btn btn-ghost" id="bQuiz" style="margin-bottom:10px">Take the AI quiz for bonus XP</button>' : ''}
+      <div id="quizBox" hidden></div>
       <button class="btn btn-dark" id="bNext">${more ? 'Next level' : 'Back to map'}</button></div>`;
+    $('#bQuiz')?.addEventListener('click', async () => {
+      const box = $('#quizBox'), btn = $('#bQuiz'); btn.hidden = true; $('#bNext').hidden = true;
+      const qs = await fetchQuiz({ skill: STATE.active, level: P.profile?.level || 'beginner', mode: 'level', title: s.title, action: s.action }, box);
+      const back = () => { $('#bNext').hidden = false; };
+      if (!qs) { back(); return; }
+      runQuiz(box, qs, s.title, (r) => {
+        P.quiz = P.quiz || {}; P.quiz[s.id] = r.right;
+        const bonus = r.right * 5; STATE.xp += bonus;
+        const b = $('#stXp b'); if (b) { b.textContent = STATE.xp; bump('stXp'); }
+        persist(); sfx(r.right === r.total ? 'win' : 'solve', 3); if (r.right === r.total) burst(120);
+        box.innerHTML = `<div class="quiz"><h4 class="q-q">${r.right} of ${r.total} correct</h4><p class="lvl-help"><b style="color:#2e9a1c">+${bonus} bonus XP</b></p></div>`; back();
+      });
+    });
+    // adaptive difficulty: add a revisit level after 1 star, or a challenge level after 3 stars
+    if (first && (stars === 1 || stars === 3) && !s.last && !/^(Revisit|Challenge|Drill): /.test(s.title)) {
+      api('/api/adapt', { method: 'POST', body: { skill: STATE.active, level: P.profile?.level || 'beginner', title: s.title, action: s.action, direction: stars === 1 ? 'easier' : 'harder' } }).then((d) => {
+        const st = P.roadmap.stages.find((x) => x.steps.some((y) => y.id === s.id)); if (!st) return;
+        const at = st.steps.findIndex((y) => y.id === s.id);
+        if (st.steps.some((y) => y.title === d.step.title)) return;
+        st.steps.splice(at + 1, 0, { ...d.step, id: 'a' + Date.now().toString(36) });
+        persist();
+        const n = $('#adaptNote'); if (n) { n.hidden = false; n.textContent = stars === 1 ? `Adapted for you: added an easier level, "${d.step.title}"` : `Adapted for you: added a harder level, "${d.step.title}"`; }
+      }).catch(() => {});
+    }
     praise(stars);
     sfx('win', stars); sfx('praise');
     for (let n = 1; n <= stars; n++) setTimeout(() => sfx('star', n), 150 + n * 220 + 120);

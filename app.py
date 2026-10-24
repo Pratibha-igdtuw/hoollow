@@ -16,7 +16,8 @@ from dotenv import load_dotenv
 from flask import Flask, g, jsonify, request, send_from_directory, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from lib.content import SKILLS, attach_problems, catalog, fallback_roadmap, sheet as leetcode_sheet, topics_for
+from lib.quiz import clean_questions, offline_questions
+from lib.content import SKILLS, attach_problems, catalog, fallback_roadmap, sheet as leetcode_sheet, topics_for, problems_for_step
 
 load_dotenv()
 
@@ -369,6 +370,78 @@ def coach():
     ans = (f"Here is a way in. {action} {hint} Break it into the smallest piece you can finish in five minutes, "
            "do that piece, then come back and ask again. (Offline coach: add a free GEMINI_API_KEY to .env for live AI answers.)")
     return jsonify(answer=ans.strip(), source="offline")
+
+
+QUIZ_SYSTEM = """You write short multiple-choice quizzes for a gamified tech-learning app.
+Return ONLY a JSON array (no markdown). Each item: {"topic": string, "q": string (max 200 chars), "options": [4 short strings],
+"answer": number (0-3, index of the correct option), "explain": string (one sentence why)}.
+Exactly one option is correct. Make wrong options plausible. Match the difficulty to the learner's level."""
+
+
+@app.post("/api/quiz")
+@login_required
+def quiz():
+    p = request.get_json(silent=True) or {}
+    key = str(p.get("skill", ""))
+    if key not in SKILLS:
+        return jsonify(error="Unknown skill."), 400
+    level = p.get("level") if p.get("level") in ("beginner", "some", "intermediate", "pro") else "beginner"
+    mode = "level" if p.get("mode") == "level" else "diagnostic"
+    topics = [t for w in topics_for(key, level) for t in w["topics"]]
+    if mode == "level":
+        title = str(p.get("title", ""))[:120]
+        action = str(p.get("action", ""))[:300]
+        n, ask = 3, f"Skill: {SKILLS[key]['name']}\nLearner level: {level}\nWrite 3 questions that check this lesson.\nLesson: {title}. {action}\nUse topic: {title}"
+    else:
+        n, ask = 6, (f"Skill: {SKILLS[key]['name']}\nLearner level: {level}\nWrite 6 diagnostic questions, one per topic, for DIFFERENT topics. "
+                     f"The topic field must be copied exactly from this list: {'; '.join(topics)}")
+    if provider():
+        try:
+            qs = clean_questions(ask_claude(QUIZ_SYSTEM, ask, max_tokens=1800, timeout=40), topics + ([str(p.get('title', ''))] if mode == "level" else []), n)
+            if len(qs) >= 2:
+                return jsonify(questions=qs, source="ai")
+        except Exception as e:
+            print("AI quiz failed:", e)
+    if mode == "diagnostic":
+        qs = offline_questions(key, topics, n)
+        if qs:
+            return jsonify(questions=qs, source="offline")
+    return jsonify(error="The quiz needs the AI key for this skill. Add GEMINI_API_KEY to .env, or pick your weak topics by hand."), 503
+
+
+@app.post("/api/adapt")
+@login_required
+def adapt():
+    """Adaptive difficulty: build one extra level after a weak (1 star) or strong (3 star) result."""
+    p = request.get_json(silent=True) or {}
+    key = str(p.get("skill", ""))
+    if key not in SKILLS:
+        return jsonify(error="Unknown skill."), 400
+    level = p.get("level") if p.get("level") in ("beginner", "some", "intermediate", "pro") else "beginner"
+    easier = p.get("direction") != "harder"
+    title = re.sub(r"^(Revisit|Challenge): ", "", str(p.get("title", ""))[:100])
+    action = str(p.get("action", ""))[:300]
+    if easier:
+        step = {"title": f"Revisit: {title}", "type": "practice", "minutes": 15, "weak": True,
+                "action": f"Go back over {title.lower()} in smaller pieces and redo one example from scratch.",
+                "hint": "Slow is fine. Fix one mistake at a time."}
+    else:
+        step = {"title": f"Challenge: {title}", "type": "build", "minutes": 25,
+                "action": f"Push {title.lower()} further with a harder problem and no notes.",
+                "hint": "Time yourself, then explain your solution out loud."}
+    if provider():
+        try:
+            txt = ask_claude("You write one concrete learning task sentence, starting with a verb, max 25 words. No markdown.",
+                             f"Skill: {SKILLS[key]['name']}\nLesson just completed: {title} ({action})\nWrite a {'simpler, step by step revision' if easier else 'harder stretch'} task for it.",
+                             max_tokens=120, timeout=20).strip().strip('"')
+            if 8 < len(txt) < 260:
+                step["action"] = txt
+        except Exception as e:
+            print("AI adapt failed, using template:", e)
+    if key == "dsa":
+        lv = level if easier else {"beginner": "some", "some": "intermediate", "intermediate": "pro"}.get(level, level)
+        step["problems"] = problems_for_step({"title": title, "action": action, "weak": easier}, lv)
+    return jsonify(step=step)
 
 
 @app.get("/api/topics")

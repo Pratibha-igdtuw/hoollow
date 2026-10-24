@@ -327,13 +327,13 @@ def fallback_roadmap(key, level, minutes, weak=(), strong=()):
     if len(out) < 2:  # never hand back a one-world path
         out = [{"title": t, "goal": g, "steps": [{"title": a, "action": b, "minutes": min(m, cap), "type": ty, "hint": HINTS[ty]} for (a, b, m, ty) in st]} for (t, g, st) in base]
     total = sum(s["minutes"] for st in out for s in st["steps"])
-    focus = sorted({w for w in weak})
+    focus = [st["title"] for g in out for st in g["steps"] if st.get("weak") and not st["title"].startswith("Drill: ")]
     nlev = sum(len(s["steps"]) for s in out)
     tag = f"{len(out)} worlds, {nlev} levels. One small step at a time."
     if weak:
         tag = f"{len(out)} worlds, {nlev} levels, with extra practice on your weak spots."
     return {"skill": skill["name"], "tagline": tag, "totalWeeks": max(1, math.ceil(total / (minutes * 5))),
-            "stages": out, "focus": [w.title() for w in focus][:8]}
+            "stages": out, "focus": focus[:8]}
 
 
 # ---------------------------------------------------------------------------
