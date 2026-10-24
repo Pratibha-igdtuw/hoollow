@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from flask import Flask, g, jsonify, request, send_from_directory, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from lib.content import SKILLS, catalog, fallback_roadmap
+from lib.content import SKILLS, attach_problems, catalog, fallback_roadmap, sheet as leetcode_sheet
 
 load_dotenv()
 
@@ -33,7 +33,7 @@ app.config.update(
     MAX_CONTENT_LENGTH=512 * 1024,
 )
 
-EMPTY_STATE = {"xp": 0, "streak": 0, "lastDay": "", "badges": [], "active": None, "paths": {}}
+EMPTY_STATE = {"xp": 0, "streak": 0, "lastDay": "", "badges": [], "active": None, "paths": {}, "solved": {}}
 
 
 # ---------- database ----------
@@ -81,7 +81,11 @@ def session_payload(row):
         state = json.loads(row["data"] or "{}")
     except json.JSONDecodeError:
         state = {}
-    return {"user": {"name": row["name"], "email": row["email"]}, "state": {**EMPTY_STATE, **state}}
+    merged = {**EMPTY_STATE, **state}
+    dsa = (merged.get("paths") or {}).get("dsa")
+    if isinstance(dsa, dict) and isinstance(dsa.get("roadmap"), dict):
+        attach_problems(dsa["roadmap"])  # older saved DSA paths get the LeetCode sheet too
+    return {"user": {"name": row["name"], "email": row["email"]}, "state": merged}
 
 
 def login_required(fn):
@@ -279,7 +283,15 @@ def roadmap():
             rm = None
     if rm is None:
         rm = fallback_roadmap(key, level, minutes)
-    return jsonify(source=source, roadmap=normalise(rm))
+    rm = normalise(rm)
+    if key == "dsa":
+        attach_problems(rm)
+    return jsonify(source=source, roadmap=rm)
+
+
+@app.get("/api/sheet")
+def get_sheet():
+    return jsonify(leetcode_sheet())
 
 
 @app.get("/api/health")

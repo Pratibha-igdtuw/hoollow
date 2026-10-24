@@ -9,7 +9,7 @@
   const root = $('#root');
 
   /* ---------------- state ---------------- */
-  const blank = () => ({ xp: 0, streak: 0, lastDay: '', badges: [], active: null, paths: {} });
+  const blank = () => ({ xp: 0, streak: 0, lastDay: '', badges: [], active: null, paths: {}, solved: {} });
   let ME = null, STATE = blank(), CATALOG = [], DEMO = false;
   let saveT;
   const persist = () => { clearTimeout(saveT); saveT = setTimeout(() => api('/api/state', { method: 'PUT', body: STATE }).catch(() => {}), 300); };
@@ -39,6 +39,9 @@
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
     flame: '<svg viewBox="0 0 24 24"><path d="M12 1.5c1.2 4 6 6.4 6 11.7a6 6 0 01-12 0c0-2.4 1.2-3.6 2.4-4.8.4 1.9 1.4 2.8 2.4 3C11 8.6 10.8 5 12 1.5z" fill="#ff6a2b"/><path d="M12 12c.8 1.6 2.6 2.4 2.6 4.4a2.6 2.6 0 01-5.2 0c0-1.2.7-1.9 1.4-2.6.2.8.6 1.2 1 1.3-.1-1 .1-2.2.2-3.1z" fill="#ffd93b"/></svg>',
     bolt: '<svg viewBox="0 0 24 24"><path d="M13.5 1.5L4 13.5h6.2l-1.4 9 9.7-12.5h-6.4z" fill="#ffd93b" stroke="#c98a00" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    sound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M15.5 9a4 4 0 010 6M18 6.5a8 8 0 010 11"/></svg>',
+    muted: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>',
+    ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg>',
     level: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#ff4fa3" stroke="#fff" stroke-width="2"/><path d="M12 5.5l1.9 4 4.4.6-3.2 3 .8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3 4.4-.6z" fill="#fff"/></svg>',
   };
   const LOGO = '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#fff" stroke="#c21f78" stroke-width="1.6"/><path d="M16 16L16 1A15 15 0 0 1 28.99 8.5Z M16 16L28.99 23.5A15 15 0 0 1 16 31Z M16 16L3.01 23.5A15 15 0 0 1 3.01 8.5Z" fill="#ff4fa3"/><circle cx="16" cy="16" r="4.2" fill="#fff" stroke="#c21f78" stroke-width="1.4"/><ellipse cx="10" cy="7.5" rx="4" ry="2" fill="#fff" opacity=".75" transform="rotate(-30 10 7.5)"/></svg>';
@@ -51,6 +54,7 @@
     { id: 'world', t: 'World cleared', d: 'Finish every level in a world', test: (s) => s.worlds >= 1 },
     { id: 'streak', t: 'Three-day streak', d: 'Learn three days in a row', test: (s) => STATE.streak >= 3 },
     { id: 'half', t: 'Halfway there', d: 'Reach 50% of your path', test: (s) => s.pct >= 50 },
+    { id: 'coder', t: 'Problem solver', d: 'Solve 10 LeetCode problems', test: () => solvedCount() >= 10 },
     { id: 'path', t: 'Path complete', d: 'Finish an entire roadmap', test: (s) => s.full },
   ];
   function stats() {
@@ -100,6 +104,15 @@
     });
     raf = parts.length ? requestAnimationFrame(loop) : 0;
   }
+
+  /* ---------------- sound hooks ---------------- */
+  const sfx = (name, ...a) => { try { window.SFX && window.SFX[name](...a); } catch { /* audio unavailable */ } };
+  addEventListener('pointerdown', () => sfx('unlock'), { once: true });
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('.btn, .skill-card, .link, .top nav a, .avatar, .menu button, .tab, .logo');
+    if (t && !t.matches('.node')) sfx('tap');
+  });
+  const soundBtn = () => `<button class="stat mute" id="mute" aria-label="${window.SFX?.muted ? 'Turn sound on' : 'Turn sound off'}" title="Sound">${window.SFX?.muted ? I.muted : I.sound}</button>`;
 
   /* ---------------- routing ---------------- */
   const cur = () => location.hash.replace(/^#\/?/, '') || 'intro';
@@ -282,6 +295,7 @@
         <span class="stat" id="stStreak" title="Daily streak">${I.flame}<b>${STATE.streak}</b> day${STATE.streak === 1 ? '' : 's'}</span>
         <span class="stat" id="stXp" title="Experience points">${I.bolt}<b>${STATE.xp}</b> XP</span>
         <span class="stat" id="stLvl" title="Your level">${I.level}Level <b>${lvl}</b></span>
+        ${soundBtn()}
       </div>
       <div class="avatar-wrap"><button class="avatar" id="avatar" aria-label="Account menu">${esc((ME.name || '?').charAt(0).toUpperCase())}</button>
         <div class="menu" id="menu" hidden><p>${esc(ME.name)}<small>${esc(ME.email)}</small></p><button id="logout">Sign out</button></div></div>
@@ -290,6 +304,7 @@
   }
   function bindShell() {
     bindNav();
+    $('#mute').addEventListener('click', () => { const m = $('#mute'); window.SFX.setMuted(!window.SFX.muted); m.innerHTML = window.SFX.muted ? I.muted : I.sound; m.setAttribute('aria-label', window.SFX.muted ? 'Turn sound on' : 'Turn sound off'); });
     $('#avatar').addEventListener('click', (e) => { e.stopPropagation(); $('#menu').hidden = !$('#menu').hidden; });
     document.addEventListener('click', () => { const m = $('#menu'); if (m) m.hidden = true; }, { once: true });
     $('#logout').addEventListener('click', async () => {
@@ -417,6 +432,7 @@
         <div class="card"><h4>Your progress</h4>
           <div class="facts"><div><b>${d}/${f.length}</b><span>Levels</span></div><div><b>${starsGot}</b><span>Stars</span></div><div><b>${STATE.streak}</b><span>Day streak</span></div></div>
           <div class="lvl-bar"><div><span>Level ${lvl}</span><span>${into} / 100 XP</span></div><div class="progress" style="height:8px"><i style="width:${into}%"></i></div></div></div>
+        ${STATE.active === 'dsa' ? `<div class="card lc-card"><h4>LeetCode sheet</h4><h3>${solvedCount()} problems solved</h3><p>Hand-picked problems that match your worlds.</p><button class="btn btn-dark" id="openSheet">Open the sheet</button></div>` : ''}
         <div class="card"><h4>Badges</h4>${BADGES.map((b) => `<div class="badge-row ${STATE.badges.includes(b.id) ? 'got' : ''}"><i>${I.check}</i><div>${b.t}<small>${b.d}</small></div></div>`).join('')}</div>
       </aside>`;
 
@@ -433,16 +449,70 @@
     bindShell();
     requestAnimationFrame(() => { redrawAll(); });
     $$('.node').forEach((n) => n.addEventListener('click', () => {
-      if (n.dataset.state === 'locked') { n.classList.remove('shake'); void n.offsetWidth; n.classList.add('shake'); toast('Finish the level before this one to unlock it.'); return; }
-      openLevel(f.find((x) => x.id === n.dataset.id));
+      if (n.dataset.state === 'locked') { n.classList.remove('shake'); void n.offsetWidth; n.classList.add('shake'); toast('Finish the level before this one to unlock it.'); sfx('error'); return; }
+      sfx('open'); openLevel(f.find((x) => x.id === n.dataset.id));
     }));
-    $('#playNext')?.addEventListener('click', () => openLevel(next));
+    $('#openSheet')?.addEventListener('click', openSheetModal);
+    $('#playNext')?.addEventListener('click', () => { sfx('open'); openLevel(next); });
     $('#reset').addEventListener('click', () => {
       if (!confirm('Restart this path? Your stars for it will be cleared.')) return;
       delete STATE.paths[STATE.active]; STATE.active = Object.keys(STATE.paths)[0] || null; persist(); navigate(STATE.active ? 'map' : 'app');
     });
     if (next && d > 0) setTimeout(() => $('.node[data-state="current"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250);
     if (DEMO && d === 0) coach(1, 3, 'This is your map. The glowing level is your first step. Tap it to begin.', '.node[data-state="current"]');
+  }
+
+  /* ---------------- LeetCode sheet (DSA) ---------------- */
+  let SHEET = null;
+  const lcUrl = (slug) => `https://leetcode.com/problems/${slug}/`;
+  const isSolved = (slug) => (STATE.solved || {})[slug] === 2;
+  const solvedCount = () => Object.values(STATE.solved || {}).filter((v) => v === 2).length;
+  function problemRow(p) {
+    return `<div class="pr ${isSolved(p.slug) ? 'solved' : ''}">
+      <label><input type="checkbox" data-slug="${esc(p.slug)}" data-diff="${esc(p.diff)}" data-xp="${p.xp}" ${isSolved(p.slug) ? 'checked' : ''} aria-label="Mark ${esc(p.title)} as solved"><i class="tick">${I.check}</i></label>
+      <span class="pr-t">${esc(p.title)}</span>
+      <span class="diff d-${esc(p.diff.toLowerCase())}">${esc(p.diff)}</span>
+      <a class="pr-go" href="${lcUrl(p.slug)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${esc(p.title)} on LeetCode">${I.ext}</a></div>`;
+  }
+  function bindProblems(scope, onChange) {
+    $$('.pr input', scope).forEach((cb) => cb.addEventListener('change', () => {
+      STATE.solved = STATE.solved || {};
+      const slug = cb.dataset.slug, xp = +cb.dataset.xp, was = STATE.solved[slug];
+      if (cb.checked) {
+        STATE.solved[slug] = 2;
+        sfx('solve', cb.dataset.diff);
+        if (!was) {
+          STATE.xp += xp; toast(`Solved! +${xp} XP`, 1800);
+          const b = $('#stXp b'); if (b) { b.textContent = STATE.xp; bump('stXp'); }
+          const fresh = BADGES.filter((x) => !STATE.badges.includes(x.id) && x.test(stats()));
+          if (fresh.length) { STATE.badges.push(...fresh.map((x) => x.id)); setTimeout(() => { toast(`New badge: ${fresh[0].t}`, 2400); sfx('badge'); burst(90); }, 700); }
+        }
+      } else { STATE.solved[slug] = 1; sfx('unsolve'); }
+      cb.closest('.pr').classList.toggle('solved', cb.checked);
+      persist(); onChange && onChange();
+    }));
+  }
+  const countIn = (el) => { const all = $$('.pr input', el); return `${all.filter((c) => c.checked).length} / ${all.length}`; };
+  function levelProblems(s) {
+    if (!s.problems || !s.problems.length) return '';
+    return `<div class="lc"><div class="lc-h"><h4>LeetCode practice</h4><b id="lcCount">${s.problems.filter((p) => isSolved(p.slug)).length} / ${s.problems.length}</b></div>${s.problems.map(problemRow).join('')}<p class="lc-note">Optional. Solve them on LeetCode, then tick them off here for bonus XP.</p></div>`;
+  }
+  async function openSheetModal() {
+    if (!SHEET) { try { SHEET = await api('/api/sheet'); } catch { toast('Could not load the sheet. Check your connection.'); return; } }
+    const total = SHEET.topics.reduce((a, t) => a + t.problems.length, 0);
+    const worlds = [...new Set(SHEET.topics.map((t) => t.world))];
+    sfx('open');
+    sheet(`<p class="eyebrow">DSA · Practice</p><h3>LeetCode sheet</h3>
+      <p class="lede">${total} hand-picked problems, in the same order as your worlds. Tick each one when you solve it.</p>
+      <div class="lc-total"><div class="progress"><i id="lcBar" style="width:0%"></i></div><b id="lcAll"></b></div>
+      <div id="lcBody">${worlds.map((w) => {
+        const ts = SHEET.topics.filter((t) => t.world === w);
+        return `<div class="lc-world"><h5><span>World ${w + 1}</span>${esc(ts[0].worldTitle)}</h5>${ts.map((t) => `<div class="lc-topic"><h6>${esc(t.title)}</h6>${t.problems.map(problemRow).join('')}</div>`).join('')}</div>`;
+      }).join('')}</div>
+      <div class="lc-ext"><h5>More sheets</h5>${SHEET.links.map((l) => `<a class="ext" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><div><b>${esc(l.name)}</b><small>${esc(l.desc)}</small></div>${I.ext}</a>`).join('')}</div>`);
+    const body = $('#lcBody');
+    const upd = () => { const all = $$('.pr input', body), d = all.filter((c) => c.checked).length; $('#lcAll').textContent = `${d} / ${all.length} solved`; $('#lcBar').style.width = Math.round((d / all.length) * 100) + '%'; };
+    bindProblems(body, upd); upd();
   }
 
   /* ---------------- level sheet ---------------- */
@@ -457,6 +527,7 @@
         <h3>${esc(s.title)}</h3>
         <p class="lede">${esc(s.action)}</p>
         <div class="tip"><b>Tip</b>${esc(s.hint || 'Keep it small and just begin.')}</div>
+        ${levelProblems(s)}
         <div class="meta-row"><span>${s.minutes} min</span><span>${cap(s.type)}</span><span>+${xpFor(s.minutes)} XP</span>${old ? `<span>Best: ${old} star${old > 1 ? 's' : ''}</span>` : ''}</div>
         <div class="row"><button class="btn btn-dark" id="bDone">I've done this</button><button class="btn btn-ghost" id="bTimer">Start ${s.minutes}-minute timer</button></div>
         <div class="timer" id="timer" hidden></div>
@@ -470,6 +541,7 @@
         </div>
       </div>
       <div id="pRes" hidden></div>`, () => { if (DEMO && !$('.node[data-state="done"]')) { /* keep tour alive */ } });
+    bindProblems($('#pDo'), () => { const c = $('#lcCount'); if (c) c.textContent = countIn($('.lc')); });
     $('#bDone').addEventListener('click', () => {
       clearInterval(timerId); timerId = null;
       $('#pDo').hidden = true; $('#pRate').hidden = false;
@@ -481,11 +553,11 @@
       const tick = () => {
         $('#timer').dataset.left = left;
         $('#timer').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
-        if (left-- <= 0) { clearInterval(timerId); timerId = null; toast('Time is up. Nicely done.'); }
+        if (left-- <= 0) { clearInterval(timerId); timerId = null; toast('Time is up. Nicely done.'); sfx('ding'); }
       };
       $('#timer').hidden = false; $('#bTimer').textContent = 'Pause timer'; tick(); timerId = setInterval(tick, 1000);
     });
-    $$('#pRate button').forEach((b) => b.addEventListener('click', () => finishLevel(s, +b.dataset.s)));
+    $$('#pRate button').forEach((b) => b.addEventListener('click', () => { sfx('select'); finishLevel(s, +b.dataset.s); }));
     if (DEMO) coach(2, 3, 'Read the step, do it (or imagine you did), then tap "I\'ve done this".', '#bDone');
   }
 
@@ -518,10 +590,16 @@
       ${lines.map((l) => `<p class="extra">${esc(l)}</p>`).join('')}
       <button class="btn btn-dark" id="bNext">${more ? 'Next level' : 'Back to map'}</button></div>`;
     praise(stars);
+    sfx('win', stars); sfx('praise');
+    for (let n = 1; n <= stars; n++) setTimeout(() => sfx('star', n), 150 + n * 220 + 120);
+    let at = 1000;
+    if (lvlUp) { setTimeout(() => sfx('levelUp'), at); at += 650; }
+    if (worldDone || pathDone) { setTimeout(() => sfx('world'), at); at += 700; }
+    if (fresh.length) setTimeout(() => sfx('badge'), at);
     burst(worldDone || pathDone || lvlUp ? 240 : 110);
     if (pathDone) setTimeout(() => burst(260), 700);
     $('#bNext').addEventListener('click', () => {
-      closeSheet(); viewMap();
+      closeSheet(); viewMap(); sfx('unlock');
       ['stXp', 'stStreak', 'stLvl'].forEach(bump);
       setTimeout(() => $('.node[data-state="current"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
       setTimeout(() => { const n = $('.node[data-state="current"]'); if (n) { n.classList.add('unlock'); setTimeout(() => n.classList.remove('unlock'), 1000); } }, 450);
@@ -553,6 +631,7 @@
   function coach(n, total, text, target, last) {
     const c = $('#coach'); c.hidden = false;
     c.innerHTML = `${n ? `<span class="c-n">${n} / ${total}</span>` : ''}<p>${esc(text)}</p>${last ? '<button class="btn" id="cOk">Explore</button>' : '<button id="cSkip">Skip tour</button>'}`;
+    sfx('sparkle');
     $$('.spot').forEach((e) => e.classList.remove('spot'));
     if (target) $$(target).forEach((e) => e.classList.add('spot'));
     $('#cSkip')?.addEventListener('click', () => { DEMO = false; hideCoach(); });

@@ -272,3 +272,122 @@ def fallback_roadmap(key, level, minutes):
         "totalWeeks": max(1, math.ceil(total / (minutes * 5))),
         "stages": out,
     }
+
+
+# ---------------------------------------------------------------------------
+# LeetCode practice sheet for the DSA path (links to leetcode.com/problems/<slug>/)
+# ---------------------------------------------------------------------------
+DIFF_XP = {"Easy": 5, "Medium": 10, "Hard": 20}
+
+
+def _p(slug, title, diff):
+    return {"slug": slug, "title": title, "diff": diff, "xp": DIFF_XP[diff]}
+
+
+WORLD_TITLES = ["Foundations", "Linear Structures", "Searching and Recursion", "Trees and Graphs"]
+
+# key, title, world index, keywords used to match a roadmap step, problems
+SHEET_TOPICS = [
+    ("bigo", "Warm-up: Loops and Big-O", 0, ["big-o", "big o"], [
+        _p("fizz-buzz", "Fizz Buzz", "Easy"),
+        _p("running-sum-of-1d-array", "Running Sum of 1d Array", "Easy"),
+        _p("richest-customer-wealth", "Richest Customer Wealth", "Easy")]),
+    ("arrays", "Arrays and Two Pointers", 0, ["two pointer", "array"], [
+        _p("reverse-string", "Reverse String", "Easy"),
+        _p("valid-palindrome", "Valid Palindrome", "Easy"),
+        _p("two-sum-ii-input-array-is-sorted", "Two Sum II - Input Array Is Sorted", "Medium")]),
+    ("strings", "Strings", 0, ["string", "anagram", "palindrome"], [
+        _p("valid-anagram", "Valid Anagram", "Easy"),
+        _p("longest-common-prefix", "Longest Common Prefix", "Easy"),
+        _p("is-subsequence", "Is Subsequence", "Easy")]),
+    ("arrays_ms", "Milestone: Easy Array Problems", 0, ["three easy"], [
+        _p("contains-duplicate", "Contains Duplicate", "Easy"),
+        _p("best-time-to-buy-and-sell-stock", "Best Time to Buy and Sell Stock", "Easy"),
+        _p("single-number", "Single Number", "Easy")]),
+    ("linked", "Linked Lists", 1, ["linked list"], [
+        _p("reverse-linked-list", "Reverse Linked List", "Easy"),
+        _p("middle-of-the-linked-list", "Middle of the Linked List", "Easy"),
+        _p("merge-two-sorted-lists", "Merge Two Sorted Lists", "Easy")]),
+    ("stack", "Stacks", 1, ["stack", "parenthes"], [
+        _p("valid-parentheses", "Valid Parentheses", "Easy"),
+        _p("min-stack", "Min Stack", "Medium"),
+        _p("daily-temperatures", "Daily Temperatures", "Medium")]),
+    ("window", "Queues and Sliding Window", 1, ["queue", "sliding window"], [
+        _p("maximum-average-subarray-i", "Maximum Average Subarray I", "Easy"),
+        _p("longest-substring-without-repeating-characters", "Longest Substring Without Repeating Characters", "Medium"),
+        _p("sliding-window-maximum", "Sliding Window Maximum", "Hard")]),
+    ("linear_ms", "Milestone: Browser History", 1, ["browser history"], [
+        _p("design-browser-history", "Design Browser History", "Medium"),
+        _p("implement-queue-using-stacks", "Implement Queue using Stacks", "Easy"),
+        _p("linked-list-cycle", "Linked List Cycle", "Easy")]),
+    ("bsearch", "Binary Search", 2, ["binary search"], [
+        _p("binary-search", "Binary Search", "Easy"),
+        _p("search-insert-position", "Search Insert Position", "Easy"),
+        _p("search-in-rotated-sorted-array", "Search in Rotated Sorted Array", "Medium")]),
+    ("recursion", "Recursion", 2, ["recursion", "fibonacci", "factorial"], [
+        _p("fibonacci-number", "Fibonacci Number", "Easy"),
+        _p("climbing-stairs", "Climbing Stairs", "Easy"),
+        _p("powx-n", "Pow(x, n)", "Medium")]),
+    ("sorting", "Sorting", 2, ["sort"], [
+        _p("merge-sorted-array", "Merge Sorted Array", "Easy"),
+        _p("sort-colors", "Sort Colors", "Medium"),
+        _p("sort-an-array", "Sort an Array", "Medium")]),
+    ("search_ms", "Milestone: Medium Problems", 2, ["three medium"], [
+        _p("koko-eating-bananas", "Koko Eating Bananas", "Medium"),
+        _p("find-minimum-in-rotated-sorted-array", "Find Minimum in Rotated Sorted Array", "Medium"),
+        _p("subsets", "Subsets", "Medium")]),
+    ("trees", "Trees", 3, ["traversal", "binary tree", "tree"], [
+        _p("binary-tree-inorder-traversal", "Binary Tree Inorder Traversal", "Easy"),
+        _p("maximum-depth-of-binary-tree", "Maximum Depth of Binary Tree", "Easy"),
+        _p("invert-binary-tree", "Invert Binary Tree", "Easy")]),
+    ("hashing", "Hash Maps", 3, ["hash"], [
+        _p("two-sum", "Two Sum", "Easy"),
+        _p("group-anagrams", "Group Anagrams", "Medium"),
+        _p("top-k-frequent-elements", "Top K Frequent Elements", "Medium")]),
+    ("graphs", "Graphs: BFS and DFS", 3, ["bfs", "dfs", "graph", "island"], [
+        _p("number-of-islands", "Number of Islands", "Medium"),
+        _p("flood-fill", "Flood Fill", "Easy"),
+        _p("binary-tree-level-order-traversal", "Binary Tree Level Order Traversal", "Medium")]),
+    ("final_ms", "Milestone: Mock Interview", 3, ["mock interview"], [
+        _p("course-schedule", "Course Schedule", "Medium"),
+        _p("validate-binary-search-tree", "Validate Binary Search Tree", "Medium"),
+        _p("rotting-oranges", "Rotting Oranges", "Medium")]),
+]
+
+# Well-known external sheets (opened in a new tab)
+EXTERNAL_SHEETS = [
+    {"name": "LeetCode Top Interview 150", "desc": "LeetCode's own study plan for interviews.", "url": "https://leetcode.com/studyplan/top-interview-150/"},
+    {"name": "LeetCode 75", "desc": "A shorter plan to build core skills fast.", "url": "https://leetcode.com/studyplan/leetcode-75/"},
+    {"name": "NeetCode 150", "desc": "Curated list with video explanations.", "url": "https://neetcode.io/practice"},
+    {"name": "Striver's SDE Sheet", "desc": "Popular interview sheet from takeUforward.", "url": "https://takeuforward.org/interviews/strivers-sde-sheet-top-coding-interview-problems/"},
+]
+
+# Match the more specific topics (milestones, linked list, ...) before generic ones (array, string).
+_MATCH_ORDER = ["bigo", "linear_ms", "arrays_ms", "search_ms", "final_ms", "linked", "stack", "window", "bsearch",
+                "recursion", "sorting", "trees", "hashing", "graphs", "strings", "arrays"]
+_TOPIC = {t[0]: t for t in SHEET_TOPICS}
+
+
+def sheet():
+    return {
+        "links": EXTERNAL_SHEETS,
+        "topics": [
+            {"key": k, "title": title, "world": w, "worldTitle": WORLD_TITLES[w], "problems": probs}
+            for (k, title, w, _kw, probs) in SHEET_TOPICS
+        ],
+    }
+
+
+def problems_for_step(step):
+    text = f"{step.get('title', '')} {step.get('action', '')}".lower()
+    for key in _MATCH_ORDER:
+        if any(kw in text for kw in _TOPIC[key][3]):
+            return _TOPIC[key][4]
+    return []
+
+
+def attach_problems(roadmap):
+    for stage in roadmap.get("stages", []):
+        for st in stage.get("steps", []):
+            st["problems"] = problems_for_step(st)
+    return roadmap
