@@ -37,11 +37,11 @@
     lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2.2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>',
     crown: '<svg viewBox="0 0 30 22" fill="currentColor"><path d="M2 20L0 5l7.5 6L15 1l7.5 10L30 5l-2 15z"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
-    flame: '<svg viewBox="0 0 24 24" fill="#d68c66"><path d="M12 2c1 3.5 5 5.7 5 10.5A5 5 0 017 12.5c0-2 1-3 2-4 .3 1.6 1.2 2.4 2 2.6C11 8.6 11 5 12 2z"/></svg>',
-    bolt: '<svg viewBox="0 0 24 24" fill="#5f8a74"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>',
-    level: '<svg viewBox="0 0 24 24" fill="none" stroke="#3f6b70" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg>',
+    flame: '<svg viewBox="0 0 24 24"><path d="M12 1.5c1.2 4 6 6.4 6 11.7a6 6 0 01-12 0c0-2.4 1.2-3.6 2.4-4.8.4 1.9 1.4 2.8 2.4 3C11 8.6 10.8 5 12 1.5z" fill="#ff6a2b"/><path d="M12 12c.8 1.6 2.6 2.4 2.6 4.4a2.6 2.6 0 01-5.2 0c0-1.2.7-1.9 1.4-2.6.2.8.6 1.2 1 1.3-.1-1 .1-2.2.2-3.1z" fill="#ffd93b"/></svg>',
+    bolt: '<svg viewBox="0 0 24 24"><path d="M13.5 1.5L4 13.5h6.2l-1.4 9 9.7-12.5h-6.4z" fill="#ffd93b" stroke="#c98a00" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    level: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#ff4fa3" stroke="#fff" stroke-width="2"/><path d="M12 5.5l1.9 4 4.4.6-3.2 3 .8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.2-3 4.4-.6z" fill="#fff"/></svg>',
   };
-  const LOGO = '<svg viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" fill="#1d2b2a"/><path d="M8 21c7 0 4-7 9-7s2-4 5-6" stroke="#cfe3d6" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="8" cy="21" r="2.4" fill="#e8b27d"/><circle cx="22" cy="8" r="2.4" fill="#cfe3d6"/></svg>';
+  const LOGO = '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#fff" stroke="#c21f78" stroke-width="1.6"/><path d="M16 16L16 1A15 15 0 0 1 28.99 8.5Z M16 16L28.99 23.5A15 15 0 0 1 16 31Z M16 16L3.01 23.5A15 15 0 0 1 3.01 8.5Z" fill="#ff4fa3"/><circle cx="16" cy="16" r="4.2" fill="#fff" stroke="#c21f78" stroke-width="1.4"/><ellipse cx="10" cy="7.5" rx="4" ry="2" fill="#fff" opacity=".75" transform="rotate(-30 10 7.5)"/></svg>';
   const logo = (href = '#/') => `<a class="logo" href="${href}">${LOGO}<span>PathFinder</span></a>`;
 
   /* ---------------- badges ---------------- */
@@ -78,12 +78,12 @@
   let parts = [], raf = 0;
   const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
   addEventListener('resize', fit); fit();
-  function burst(n = 90) {
+  function burst(n = 110) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const colors = ['#8fb39e', '#5f8a74', '#d68c66', '#dfa93c', '#d5e3e4', '#e7dfcf'];
+    const colors = ['#ff3b4a', '#ff9a1f', '#ffd93b', '#5ed13a', '#2f9bff', '#9b5de5', '#ff4fa3'];
     for (let i = 0; i < n; i++) {
       const a = -Math.PI * (0.15 + Math.random() * 0.7), v = (7 + Math.random() * 11) * devicePixelRatio;
-      parts.push({ x: cv.width / 2, y: cv.height * 0.62, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: (6 + Math.random() * 6) * devicePixelRatio, h: (4 + Math.random() * 5) * devicePixelRatio, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.35, c: colors[(Math.random() * colors.length) | 0], life: 1 });
+      parts.push({ x: cv.width / 2, y: cv.height * 0.62, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: (6 + Math.random() * 6) * devicePixelRatio, h: (4 + Math.random() * 5) * devicePixelRatio, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.35, c: colors[(Math.random() * colors.length) | 0], t: (Math.random() * 3) | 0, life: 1 });
     }
     if (!raf) raf = requestAnimationFrame(loop);
   }
@@ -92,7 +92,11 @@
     parts = parts.filter((p) => p.life > 0 && p.y < cv.height + 40);
     parts.forEach((p) => {
       p.vy += 0.36 * devicePixelRatio; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life -= 0.008;
-      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.globalAlpha = Math.max(0, p.life); cx.fillStyle = p.c; cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cx.restore();
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.globalAlpha = Math.max(0, p.life); cx.fillStyle = p.c;
+      if (p.t === 0) { cx.beginPath(); cx.arc(0, 0, p.w * 0.6, 0, 7); cx.fill(); cx.fillStyle = 'rgba(255,255,255,.7)'; cx.beginPath(); cx.arc(-p.w * 0.2, -p.w * 0.2, p.w * 0.18, 0, 7); cx.fill(); }
+      else if (p.t === 1) { cx.beginPath(); cx.ellipse(0, 0, p.w * 0.8, p.h * 0.5, 0, 0, 7); cx.fill(); cx.strokeStyle = 'rgba(255,255,255,.75)'; cx.lineWidth = p.h * 0.28; cx.beginPath(); cx.moveTo(-p.w * 0.3, -p.h * 0.5); cx.lineTo(p.w * 0.3, p.h * 0.5); cx.stroke(); }
+      else { cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); }
+      cx.restore();
     });
     raf = parts.length ? requestAnimationFrame(loop) : 0;
   }
@@ -124,16 +128,16 @@
   function drawPath(c) {
     const svg = c && c.querySelector('svg.trail');
     if (!svg) return;
-    const cr = c.getBoundingClientRect();
-    svg.setAttribute('width', cr.width); svg.setAttribute('height', cr.height); svg.setAttribute('viewBox', `0 0 ${cr.width} ${cr.height}`);
-    const pts = $$('.node', c).map((n) => { const r = n.getBoundingClientRect(); return { x: r.left - cr.left + r.width / 2, y: r.top - cr.top + r.height / 2, done: n.dataset.state === 'done' }; });
+    const W = c.offsetWidth, H = c.offsetHeight;
+    svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const pts = $$('.node', c).map((n) => { const lv = n.parentElement; return { x: lv.offsetLeft + n.offsetLeft + n.offsetWidth / 2, y: lv.offsetTop + n.offsetTop + n.offsetHeight / 2, done: n.dataset.state === 'done' }; });
     let base = '', prog = '';
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i], my = (a.y + b.y) / 2;
       const seg = `M${a.x},${a.y} C${a.x},${my} ${b.x},${my} ${b.x},${b.y} `;
       base += seg; if (a.done) prog += seg;
     }
-    svg.innerHTML = `<path class="t-base" d="${base}"/><path class="t-prog" d="${prog}"/>`;
+    svg.innerHTML = `<path class="t-edge" d="${base}"/><path class="t-base" d="${base}"/><path class="t-prog" d="${prog}"/>`;
   }
   const redrawAll = () => $$('.levels').forEach(drawPath);
   addEventListener('resize', redrawAll);
@@ -148,7 +152,7 @@
       { x: 26, st: 'locked', stars: 0, n: 4, t: 'Milestone: tip calculator', ms: true },
     ];
     return `<div class="levels preview compact"><svg class="trail"></svg>${rows.map((r) => `
-      <div class="lv ${r.ms ? 'ms' : ''}" data-st="${r.st}" style="--x:${r.x}%">
+      <div class="lv ${r.ms ? 'ms' : ''}" data-st="${r.st}" data-x="${r.x >= 60 ? 'r' : 'l'}" style="--x:${r.x}%;--i:${r.n}">
         ${r.st === 'current' ? '<div class="bubble">Play</div>' : ''}
         <div class="node" data-state="${r.st}">${r.st === 'locked' ? I.lock : r.n}${r.ms ? `<i class="crown">${I.crown}</i>` : ''}</div>
         <div class="stars">${[1, 2, 3].map((n) => I.star(r.stars >= n)).join('')}</div>
@@ -169,8 +173,8 @@
       <section class="hero"><div class="container hero-grid">
         <div>
           <p class="eyebrow">Guided learning for technology</p>
-          <h1 class="display" style="margin-top:18px">Learn technology without wondering <em>what's next.</em></h1>
-          <p class="lede">PathFinder turns any tech skill into a calm, step-by-step journey. Choose a skill, follow your map, and finish one small level at a time.</p>
+          <h1 class="display" style="margin-top:18px">Learn technology the sweet way, <em>one level at a time.</em></h1>
+          <p class="lede">PathFinder turns any tech skill into a game. Choose a skill, follow your candy-bright map, earn stars and finish one small level at a time.</p>
           <div class="cta-row">
             <button class="btn btn-dark" data-nav="login">Start learning free</button>
             <button class="btn btn-ghost" id="demoBtn">Watch the 60-second demo</button>
@@ -184,7 +188,7 @@
       </div></section>
 
       <section class="sec alt" id="how"><div class="container">
-        <div class="sec-h"><p class="eyebrow">How it works</p><h2>Three quiet steps from "where do I start?" to done.</h2></div>
+        <div class="sec-h"><p class="eyebrow">How it works</p><h2>Three easy steps from "where do I start?" to done.</h2></div>
         <div class="how">
           <div><span class="n">1</span><h3>Choose a skill</h3><p>Pick from carefully selected technology skills, then tell us your level and how much time you have each day.</p></div>
           <div><span class="n">2</span><h3>Get your roadmap</h3><p>An AI mentor builds a clear path of worlds and levels, sized to your day. The first step is always tiny.</p></div>
@@ -200,7 +204,7 @@
       <section class="sec alt" id="levels"><div class="container feature">
         <div>
           <p class="eyebrow">Made to be finished</p>
-          <div class="sec-h" style="margin-bottom:0"><h2>Levels, not lectures.</h2><p>Learning sticks when progress is visible. Every step is a level on a map, with a reward that makes coming back feel natural.</p></div>
+          <div class="sec-h" style="margin-bottom:0"><h2>Levels, not lectures.</h2><p>Learning sticks when progress is visible. Every step is a level on a map, with stars, XP and badges that make coming back feel natural.</p></div>
           <ul>
             <li><i>01</i><div><b>One level at a time</b><span>Only the next level is open. You always know exactly what to do.</span></div></li>
             <li><i>02</i><div><b>Up to three stars</b><span>Rate how it went honestly. Replay a level to earn more stars.</span></div></li>
@@ -367,7 +371,7 @@
   async function buildPath(key, prof) {
     const name = CATALOG.find((c) => c.key === key).name;
     const L = document.createElement('div'); L.className = 'loader';
-    L.innerHTML = `<div><div class="spin"></div><h2>Building your ${esc(name)} path</h2><p id="ls">${LOAD[0]}</p></div>`;
+    L.innerHTML = `<div><div class="balls"><i></i><i></i><i></i><i></i></div><h2>Building your ${esc(name)} path</h2><p id="ls">${LOAD[0]}</p></div>`;
     document.body.appendChild(L);
     let i = 0; const iv = setInterval(() => { const p = $('#ls'); if (p) p.textContent = LOAD[++i % LOAD.length]; }, 750);
     const t0 = Date.now();
@@ -398,7 +402,7 @@
         const g = f.find((x) => x.id === s.id);
         const state = P.done[s.id] ? 'done' : next && next.id === s.id ? 'current' : 'locked';
         const stars = P.done[s.id] || 0;
-        levels += `<div class="lv ${g.last ? 'ms' : ''}" data-st="${state}" style="--x:${X[i % 4]}%">
+        levels += `<div class="lv ${g.last ? 'ms' : ''}" data-st="${state}" data-x="${X[i % 4] >= 60 ? 'r' : 'l'}" style="--x:${X[i % 4]}%;--i:${g.idx}">
           ${state === 'current' ? '<div class="bubble">Play</div>' : ''}
           <button class="node" data-state="${state}" data-id="${s.id}" aria-label="Level ${g.idx + 1}: ${esc(s.title)}${state === 'locked' ? ' (locked)' : ''}">${state === 'locked' ? I.lock : g.idx + 1}${g.last ? `<i class="crown">${I.crown}</i>` : ''}</button>
           <div class="stars">${[1, 2, 3].map((n) => I.star(stars >= n)).join('')}</div>
@@ -509,19 +513,31 @@
     const res = $('#pRes'); res.hidden = false;
     res.innerHTML = `<div class="res">
       <div class="res-stars">${[1, 2, 3].map((n) => `<span style="--d:${0.15 + n * 0.22}s">${I.star(n <= stars)}</span>`).join('')}</div>
-      <h3>${pathDone ? 'Path complete' : 'Level complete'}</h3>
+      <h3>${pathDone ? 'Path Complete!' : 'Level Complete!'}</h3>
       <p class="gain">${first ? `+${gain} XP` : stars > old ? 'Better score saved.' : 'Your best score stays.'}</p>
       ${lines.map((l) => `<p class="extra">${esc(l)}</p>`).join('')}
       <button class="btn btn-dark" id="bNext">${more ? 'Next level' : 'Back to map'}</button></div>`;
-    burst(worldDone || pathDone || lvlUp ? 220 : 80);
+    praise(stars);
+    burst(worldDone || pathDone || lvlUp ? 240 : 110);
     if (pathDone) setTimeout(() => burst(260), 700);
     $('#bNext').addEventListener('click', () => {
       closeSheet(); viewMap();
       ['stXp', 'stStreak', 'stLvl'].forEach(bump);
       setTimeout(() => $('.node[data-state="current"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+      setTimeout(() => { const n = $('.node[data-state="current"]'); if (n) { n.classList.add('unlock'); setTimeout(() => n.classList.remove('unlock'), 1000); } }, 450);
       if (DEMO) { DEMO = false; coach(0, 0, 'That is the whole loop: pick a skill, get a roadmap, play one level, earn stars. Your account saves it all.', null, true); }
     });
     if (DEMO) coach(0, 0, 'Stars, XP and badges appear after every level. Tap "Next level" to see your map update.', null);
+  }
+
+  /* ---------------- praise word ---------------- */
+  function praise(stars) {
+    const word = { 3: 'Divine!', 2: 'Delicious!', 1: 'Sweet!' }[stars] || 'Sweet!';
+    const color = { 3: '#ffe14d', 2: '#ffb62e', 1: '#ff8fd0' }[stars] || '#ffe14d';
+    const el = document.createElement('div');
+    el.className = 'praise'; el.style.setProperty('--c', color); el.textContent = word;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1900);
   }
 
   /* ---------------- guided demo ---------------- */

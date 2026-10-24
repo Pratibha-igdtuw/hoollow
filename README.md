@@ -37,7 +37,7 @@ Demo account: `demo@pathfinder.app` / `demo1234`.
 app.py               Flask server: auth, saved progress, catalog, roadmap API
 lib/content.py       Tech skill catalog + offline roadmaps
 static/index.html    App shell
-static/css/styles.css  Design system (calm paper-and-sage palette)
+static/css/styles.css  Candy Land theme (sky gradient, glossy candy colours, jelly animations)
 static/js/app.js     Router, views, level map, gamification, confetti
 pathfinder.db        Created on first run (SQLite)
 ```
@@ -46,3 +46,10 @@ pathfinder.db        Created on first run (SQLite)
 
 - The API key stays on the server.
 - Fonts load from Google Fonts; offline, the page falls back to system fonts.
+
+## Look and feel
+
+Candy-bright palette (sky blue to pink backdrop, glossy orange / pink / green buttons, purple HUD with gold trim) and
+game-style animation: jelly hover on buttons, bouncing current level with a pulsing halo, star pop-ins with a praise
+word ("Divine!", "Delicious!", "Sweet!"), candy-shaped confetti, drifting clouds and floating candies.
+All artwork is original CSS/SVG made for this project.

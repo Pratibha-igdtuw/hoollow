@@ -3,15 +3,38 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PathFinder — Learn technology, one clear level at a time</title>
-  <meta name="description" content="A calm, guided way to learn technology. Pick a skill, follow the map, finish one level at a time." />
-  <meta name="theme-color" content="#f5f1ea" />
+  <title>PathFinder — Learn technology, one sweet level at a time</title>
+  <meta name="description" content="Learn technology like a game. Pick a skill, follow the candy-bright level map, earn stars." />
+  <meta name="theme-color" content="#4a22a0" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="goldG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff27a" />
+        <stop offset="0.55" stop-color="#ffc21f" />
+        <stop offset="1" stop-color="#ff9a1f" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="sky" aria-hidden="true">
+    <i class="cloud c1"></i><i class="cloud c2"></i><i class="cloud c3"></i><i class="cloud c4"></i>
+    <i class="candy" style="left:4%;top:22%;--s:46px;--c1:#ff7a86;--c2:#e8222f;--t:6s"></i>
+    <i class="candy" style="left:93%;top:30%;--s:38px;--c1:#ffe96b;--c2:#e9b400;--t:7.5s;animation-delay:-2s"></i>
+    <i class="candy" style="left:8%;top:68%;--s:34px;--c1:#8be85c;--c2:#3fb52a;--t:8s;animation-delay:-4s"></i>
+    <i class="candy" style="left:90%;top:74%;--s:52px;--c1:#6cb8ff;--c2:#1f7de0;--t:6.5s;animation-delay:-1s"></i>
+    <i class="candy" style="left:48%;top:90%;--s:30px;--c1:#ffc84a;--c2:#ff8a00;--t:7s;animation-delay:-3s"></i>
+    <i class="candy" style="left:80%;top:8%;--s:30px;--c1:#c08cff;--c2:#7d3fd6;--t:9s;animation-delay:-5s"></i>
+    <i class="spark" style="left:14%;top:12%"></i><i class="spark" style="left:72%;top:18%;animation-delay:-1s;width:14px;height:14px"></i>
+    <i class="spark" style="left:30%;top:48%;animation-delay:-2s;width:16px;height:16px"></i><i class="spark" style="left:86%;top:52%;animation-delay:-0.5s"></i>
+    <i class="spark" style="left:56%;top:76%;animation-delay:-1.6s;width:14px;height:14px"></i><i class="spark" style="left:6%;top:88%;animation-delay:-2.2s"></i>
+  </div>
+
   <div id="root"></div>
   <div id="coach" class="coach" hidden></div>
   <div id="modal-root"></div>
